@@ -27,13 +27,19 @@ CA_name = sys.argv[2]
 CA_value = sys.argv[3]
 tag_name = sys.argv[4]
 
+xmlnamespace = ' xmlns:xsd="http://www.w3.org/2001/XMLSchema" \
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+                 xmlns="http://www.air-watch.com/servicemodel/resources"'
+
+
 def get_CAdevices(headers, caname, cavalue):
     endpoint = url + "/api/mdm/devices/customattribute/search?"
     query = {"customattributename": caname}
     try:
-        response = requests.request("GET", endpoint, headers=headers, params=query)
+        response = requests.request("GET", endpoint, headers=headers,
+                                    params=query)
         data = json.loads(response.text)
-        s = [];
+        s = []
         for x in data['Devices']:
             for y in x.get('CustomAttributes'):
                 if y.get('Name') == caname:
@@ -43,12 +49,13 @@ def get_CAdevices(headers, caname, cavalue):
     except KeyError, error:
         return 'Unknown'
 
+
 def get_maxTagID(headers):
     endpoint = url + "/api/mdm/tags/search?organizationgroupid=7"
     try:
         response = requests.request("GET", endpoint, headers=headers)
         data = json.loads(response.text)
-        i = [];
+        i = []
         for t in data['Tags']:
             i.append(t['Id']['Value'])
         try:
@@ -58,33 +65,40 @@ def get_maxTagID(headers):
     except KeyError, error:
         return 'Unknown'
 
+
 def createTag(headers, tagxml):
     endpoint = url + "/api/mdm/tags/addtag"
     try:
-        response = requests.request("POST", endpoint, headers=headers, data=tagxml)
+        response = requests.request("POST", endpoint, headers=headers,
+                                    data=tagxml)
         data = json.loads(response.text)
         return data
     except KeyError, error:
         return 'Unknown'
 
+
 def set_deviceTag(headers, tagid, tagbody):
     endpoint = url + "/api/mdm/tags/%s/adddevices" % tagid
     try:
-        response = requests.request("POST", endpoint, headers=headers, data=tagbody)
+        response = requests.request("POST", endpoint, headers=headers,
+                                    data=tagbody)
         data = json.loads(response.text)
         return data
     except KeyError, error:
         return 'Unknown'
+
 
 def get_deviceID(headers, serial):
     endpoint = url + "/api/mdm/devices"
     query = {"searchby": "Serialnumber", "id": serial}
     try:
-        response = requests.request("GET", endpoint, headers=headers, params=query)
+        response = requests.request("GET", endpoint, headers=headers,
+                                    params=query)
         data = json.loads(response.text)
         return data["Id"]["Value"]
     except KeyError, error:
         return 'Unknown'
+
 
 def get_ogid(headers, groupid):
     endpoint = url + "/api/system/groups/search?groupid=" + groupid
@@ -94,6 +108,7 @@ def get_ogid(headers, groupid):
         return data['LocationGroups'][0]['Id']['Value']
     except KeyError, error:
         return 'Unknown'
+
 
 def main():
     # get current highest Tag ID
@@ -106,10 +121,10 @@ def main():
 
     # build XML for creating the new tag
     rootTag = ET.Element("Tag")
-    ET.SubElement(rootTag,"Id").text = str(nextTagID)
-    ET.SubElement(rootTag,"TagName").text = tag_name
-    ET.SubElement(rootTag,"TagType").text = "Device"
-    ET.SubElement(rootTag,"LocationGroupId").text = str(ogid)
+    ET.SubElement(rootTag, "Id").text = str(nextTagID)
+    ET.SubElement(rootTag, "TagName").text = tag_name
+    ET.SubElement(rootTag, "TagType").text = "Device"
+    ET.SubElement(rootTag, "LocationGroupId").text = str(ogid)
 
     tagXML = tostring(rootTag)
     # create tag
@@ -122,7 +137,7 @@ def main():
     # get the Device ID's of the serials
     id_list = []
     for i in serials:
-        x = get_deviceID(headers,i)
+        x = get_deviceID(headers, i)
         id_list.append(x)
 
     # build XML to add tag to each Device ID
@@ -134,11 +149,13 @@ def main():
         x.text = str(n)
 
     xmlstr = ET.tostring(bulkinput, method='xml')
+
     # add this XML namespace crap for this particular endpoint
-    bs_xml = xmlstr[:10] + ' xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.air-watch.com/servicemodel/resources"' + xmlstr[10:]
+    bs_xml = xmlstr[:10] + xmlnamespace + xmlstr[10:]
 
     # set device tag for device id's
     set_deviceTag(headers, tid, bs_xml)
+
 
 if __name__ == '__main__':
     main()
